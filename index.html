@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Carga Tesla">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>Calculadora de carga Tesla</title>
+  <style>
+    :root{--bg:#f3f4f6;--card:#fff;--text:#111827;--muted:#6b7280;--line:#d1d5db;--dark:#111827;--green:#0f766e;--soft:#f9fafb}
+    *{box-sizing:border-box}
+    body{margin:0;padding:calc(18px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#eef2f7 0%,#f7f7f8 100%);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+    .app{max-width:560px;margin:auto}.hero{padding:8px 2px 18px}h1{font-size:29px;line-height:1.1;margin:0 0 8px}.sub{color:var(--muted);margin:0;line-height:1.45}
+    .card{background:var(--card);border:1px solid rgba(0,0,0,.08);border-radius:22px;padding:18px;box-shadow:0 12px 36px rgba(0,0,0,.08)}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:flex;flex-direction:column;gap:7px}.full{grid-column:1/-1}
+    label{font-weight:700;font-size:14px}input{width:100%;border:1px solid var(--line);border-radius:14px;padding:13px 14px;font-size:18px;background:white;color:var(--text);-webkit-appearance:none;appearance:none}
+    button{width:100%;border:0;border-radius:14px;padding:14px 16px;font-size:17px;font-weight:800;background:var(--dark);color:#fff}
+    .result{margin-top:16px;border-radius:18px;padding:18px;background:var(--soft);border:1px solid #e5e7eb}.eyebrow{font-size:13px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+    .time{font-size:44px;line-height:1;font-weight:900;color:var(--green);margin:8px 0}.detail{color:#374151;line-height:1.55}.formula{margin-top:14px;padding:13px;border-radius:14px;background:#eef2f7;color:#374151;font-size:14px}
+    .note{font-size:13px;color:var(--muted);line-height:1.45;margin:14px 2px 0}@media(max-width:460px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.time{font-size:40px}}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="hero">
+      <h1>Calculadora de carga Tesla</h1>
+      <p class="sub">Calcula a qué hora debe empezar la carga para alcanzar el porcentaje deseado a la hora que indiques.</p>
+    </section>
+    <section class="card">
+      <div class="grid">
+        <div class="field"><label for="actual">Batería actual</label><input id="actual" type="number" min="0" max="100" step="1" value="20" inputmode="numeric"></div>
+        <div class="field"><label for="objetivo">Objetivo</label><input id="objetivo" type="number" min="0" max="100" step="1" value="50" inputmode="numeric"></div>
+        <div class="field"><label for="fin">Hora de fin</label><input id="fin" type="time" value="06:45"></div>
+        <div class="field"><label for="ritmo">Ritmo (%/h)</label><input id="ritmo" type="number" min="0.1" step="0.1" value="5.5" inputmode="decimal"></div>
+        <div class="field full"><button type="button" id="calc">Calcular hora de inicio</button></div>
+      </div>
+      <div class="result" id="resultado"><div class="eyebrow">Comenzar a cargar</div><div class="time">01:18</div><div class="detail">20% → 50% · 5 h 27 min · fin 06:45</div></div>
+      <div class="formula">Hora de inicio = hora de fin − ((objetivo − actual) ÷ ritmo)</div>
+      <p class="note">Referencia por defecto: 5,5 puntos porcentuales por hora a 16 A, basada en tu carga real observada.</p>
+    </section>
+  </main>
+<script>
+(function(){
+  const $=id=>document.getElementById(id),pad=n=>String(n).padStart(2,'0');
+  function calc(){
+    const actual=Number($('actual').value),objetivo=Number($('objetivo').value),ritmo=Number($('ritmo').value),fin=$('fin').value,out=$('resultado');
+    if(!fin||!Number.isFinite(actual)||!Number.isFinite(objetivo)||!Number.isFinite(ritmo)){out.innerHTML='<div class="detail"><b>Revisa los datos introducidos.</b></div>';return}
+    if(actual<0||actual>100||objetivo<0||objetivo>100||ritmo<=0){out.innerHTML='<div class="detail"><b>Hay un valor fuera de rango.</b></div>';return}
+    if(objetivo<=actual){out.innerHTML='<div class="eyebrow">Resultado</div><div class="detail"><b>No necesitas cargar para alcanzar ese objetivo.</b></div>';return}
+    const puntos=objetivo-actual,minsCarga=Math.round((puntos/ritmo)*60),parts=fin.split(':').map(Number);
+    let minsInicio=parts[0]*60+parts[1]-minsCarga,anterior=false;
+    while(minsInicio<0){minsInicio+=1440;anterior=true} minsInicio%=1440;
+    const ih=Math.floor(minsInicio/60),im=minsInicio%60,dh=Math.floor(minsCarga/60),dm=minsCarga%60;
+    out.innerHTML='<div class="eyebrow">Comenzar a cargar</div><div class="time">'+pad(ih)+':'+pad(im)+'</div><div class="detail">'+(anterior?'<b>Día anterior</b> · ':'')+actual+'% → '+objetivo+'% · <b>'+dh+' h '+pad(dm)+' min</b> · fin '+fin+'</div>';
+  }
+  $('calc').addEventListener('click',calc);
+  ['actual','objetivo','fin','ritmo'].forEach(id=>$(id).addEventListener('input',calc));
+  calc();
+  if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+})();
+</script>
+</body>
+</html>
